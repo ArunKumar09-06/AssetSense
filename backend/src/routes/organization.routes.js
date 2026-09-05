@@ -1,6 +1,10 @@
 const express = require("express");
 const {
     createOrganization,
+    joinOrganization,
+    requestOrganizationLeave,
+    getOrganizationLeaveRequests,
+    reviewOrganizationLeaveRequest,
     getOrganization,
     updateOrganization,
     getOrganizationMembers
@@ -13,6 +17,10 @@ const router = express.Router();
 router.use(authenticateUser);
 
 router.post("/", authenticateUser,createOrganization);
+router.post("/join", joinOrganization);
+router.post("/leave-requests", requestOrganizationLeave);
+router.get("/leave-requests", ensureOrganization, authorizeAdmin, getOrganizationLeaveRequests);
+router.patch("/leave-requests/:requestId", ensureOrganization, authorizeAdmin, reviewOrganizationLeaveRequest);
 router.get("/me", ensureOrganization, getOrganization);
 router.patch("/me", ensureOrganization, authorizeAdmin, updateOrganization);
 router.get("/members", ensureOrganization, getOrganizationMembers);
