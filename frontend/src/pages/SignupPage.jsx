@@ -80,7 +80,7 @@ export default function SignupPage() {
             >
               A
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>AssetSense</span>
+            <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>DevCollab</span>
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.375rem' }}>
             Create your account

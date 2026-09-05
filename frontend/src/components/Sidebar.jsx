@@ -94,7 +94,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.02em' }}>
-              AssetSense
+              DevCollab
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
               Management System

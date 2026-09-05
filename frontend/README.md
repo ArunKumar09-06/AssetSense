@@ -1,6 +1,6 @@
-# AssetSense — Product & Project Management System (Frontend)
+# DevCollab - Product & Project Management System (Frontend)
 
-AssetSense is a clean, modern, professional frontend built for the Product and Project Management System backend.
+DevCollab is a clean, modern, professional frontend built for the Product and Project Management System backend.
 
 ## Tech Stack
 - **Framework:** React 18 (Vite)

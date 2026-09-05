@@ -33,7 +33,7 @@ export default function Layout({ children }) {
           >
             <Menu size={20} />
           </button>
-          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>AssetSense</span>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>DevCollab</span>
           <div style={{ width: 36 }} />
         </div>
 

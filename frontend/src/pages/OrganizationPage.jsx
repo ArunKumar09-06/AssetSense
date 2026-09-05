@@ -13,11 +13,17 @@ export default function OrganizationPage() {
 
   const [organization, setOrganization] = useState(null);
   const [members, setMembers] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Create Org state (for users who haven't created one)
   const [createForm, setCreateForm] = useState({ orgName: '', description: '' });
   const [createLoading, setCreateLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [leaveRequested, setLeaveRequested] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
+  const [reviewingRequest, setReviewingRequest] = useState(null);
 
   // Edit Org state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -31,9 +37,11 @@ export default function OrganizationPage() {
     }
 
     try {
-      const [orgRes, membersRes] = await Promise.allSettled([
+      const requestsPromise = isAdmin ? orgApi.getLeaveRequests() : Promise.resolve(null);
+      const [orgRes, membersRes, requestsRes] = await Promise.allSettled([
         orgApi.getMe(),
         orgApi.getMembers(),
+        requestsPromise,
       ]);
 
       if (orgRes.status === 'fulfilled') {
@@ -45,12 +53,15 @@ export default function OrganizationPage() {
       if (membersRes.status === 'fulfilled') {
         setMembers(membersRes.value.data.data || []);
       }
+      if (requestsRes.status === 'fulfilled' && requestsRes.value) {
+        setLeaveRequests(requestsRes.value.data.data || []);
+      }
     } catch (err) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [hasOrg, toast]);
+  }, [hasOrg, isAdmin, toast]);
 
   useEffect(() => {
     loadOrgData();
@@ -78,6 +89,51 @@ export default function OrganizationPage() {
       toast.error(err.message);
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const handleJoinOrg = async (e) => {
+    e.preventDefault();
+    if (!inviteCode.trim()) {
+      toast.error('Enter an organization code.');
+      return;
+    }
+
+    setJoinLoading(true);
+    try {
+      await orgApi.join(inviteCode);
+      toast.success('You joined the organization successfully!');
+      await refetchUser();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
+  const handleRequestLeave = async () => {
+    setLeaveLoading(true);
+    try {
+      await orgApi.requestLeave();
+      setLeaveRequested(true);
+      toast.success('Leave request sent to the organization admin.');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
+  const handleReviewLeave = async (requestId, decision) => {
+    setReviewingRequest(requestId);
+    try {
+      await orgApi.reviewLeaveRequest(requestId, decision);
+      toast.success(decision === 'approve' ? 'Member removed from the organization.' : 'Leave request rejected.');
+      await loadOrgData();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setReviewingRequest(null);
     }
   };
 
@@ -174,6 +230,38 @@ export default function OrganizationPage() {
             </button>
           </form>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0', color: 'var(--text-muted)' }}>
+          <div style={{ height: 1, flex: 1, backgroundColor: 'var(--border)' }} />
+          <span style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>or</span>
+          <div style={{ height: 1, flex: 1, backgroundColor: 'var(--border)' }} />
+        </div>
+
+        <div className="card" style={{ padding: '2rem' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.4rem' }}>Join an Organization</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+            Enter the organization code shared by an administrator.
+          </p>
+          <form onSubmit={handleJoinOrg}>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" htmlFor="org-invite-code">Organization Code</label>
+              <input
+                id="org-invite-code"
+                type="text"
+                required
+                className="form-input"
+                placeholder="E.g. A1B2C3D4"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                maxLength={8}
+                autoComplete="off"
+              />
+            </div>
+            <button type="submit" className="btn btn-secondary" disabled={joinLoading} style={{ width: '100%', padding: '0.7rem' }}>
+              {joinLoading ? 'Joining organization...' : 'Join Organization'}
+            </button>
+          </form>
+        </div>
       </div>
     );
   }
@@ -233,6 +321,12 @@ export default function OrganizationPage() {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '750px' }}>
           {organization?.description}
         </p>
+        {isAdmin && organization?.inviteCode && (
+          <div style={{ marginTop: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Share this code with new members:{' '}
+            <strong style={{ color: 'var(--text-primary)', letterSpacing: '0.1em' }}>{organization.inviteCode}</strong>
+          </div>
+        )}
       </div>
 
       {/* Members Directory */}
@@ -282,6 +376,76 @@ export default function OrganizationPage() {
           </tbody>
         </table>
       </div>
+
+      {isAdmin && leaveRequests.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Leave Requests</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+              Approving removes the member from teams and deletes their organization tasks.
+            </p>
+          </div>
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Requested</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveRequests.map((request) => (
+                  <tr key={request._id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Avatar name={request.userId?.name} src={request.userId?.profilePicture} size={32} />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{request.userId?.name}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{request.userId?.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleReviewLeave(request._id, 'approve')}
+                          disabled={reviewingRequest === request._id}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleReviewLeave(request._id, 'reject')}
+                          disabled={reviewingRequest === request._id}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!isAdmin && (
+        <div className="card" style={{ marginTop: '2rem', padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Leave this organization</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+              An admin must approve your request before you can join another organization.
+            </p>
+          </div>
+          <button className="btn btn-secondary" onClick={handleRequestLeave} disabled={leaveLoading || leaveRequested}>
+            {leaveRequested ? 'Request Pending' : leaveLoading ? 'Sending Request...' : 'Request to Leave'}
+          </button>
+        </div>
+      )}
 
       {/* Edit Organization Modal */}
       {editModalOpen && (

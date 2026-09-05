@@ -42,7 +42,7 @@ export default function Footer() {
             >
               A
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1rem' }}>AssetSense</span>
+            <span style={{ fontWeight: 800, fontSize: '1rem' }}>DevCollab</span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.6 }}>
             Modern product and project management system designed for speed, clarity, and accountability.
@@ -108,7 +108,7 @@ export default function Footer() {
           color: 'var(--text-muted)',
         }}
       >
-        <div>© {new Date().getFullYear()} AssetSense Management System. All rights reserved.</div>
+        <div>© {new Date().getFullYear()} DevCollab. All rights reserved.</div>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
           <span>Privacy Policy</span>
           <span>Terms of Service</span>
