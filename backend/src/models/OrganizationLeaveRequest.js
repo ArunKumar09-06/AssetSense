@@ -21,7 +21,8 @@ const organizationLeaveRequestSchema = new mongoose.Schema(
         },
 
         reviewedAt: {
-            type: Date
+            type: Date,
+            default: null
         }
     },
     {

@@ -63,7 +63,7 @@ export default function Navbar() {
             A
           </div>
           <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>
-            DevCollab
+            AssetSense
           </span>
         </Link>
 

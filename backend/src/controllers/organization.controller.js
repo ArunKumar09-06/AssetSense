@@ -1,8 +1,10 @@
 const Organization = require("../models/Organization");
 const OrganizationLeaveRequest = require("../models/OrganizationLeaveRequest");
 const User = require("../models/User");
+const Project = require("../models/Project");
 const Task = require("../models/Task");
 const TeamMember = require("../models/TeamMember");
+const TeamProject = require("../models/TeamProject");
 const crypto = require("crypto");
 
 function createInviteCode() {
@@ -94,32 +96,20 @@ async function joinOrganization(req, res) {
     try {
         const inviteCode = req.body.inviteCode?.trim().toUpperCase();
         if (!inviteCode) {
-            return res.status(400).json({
-                success: false,
-                message: "Organization code is required"
-            });
+            return res.status(400).json({ success: false, message: "Organization code is required" });
         }
 
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
+            return res.status(404).json({ success: false, message: "User not found" });
         }
         if (user.organizationId) {
-            return res.status(400).json({
-                success: false,
-                message: "You already belong to an organization"
-            });
+            return res.status(400).json({ success: false, message: "You already belong to an organization" });
         }
 
         const organization = await Organization.findOne({ inviteCode });
         if (!organization) {
-            return res.status(404).json({
-                success: false,
-                message: "Invalid organization code"
-            });
+            return res.status(404).json({ success: false, message: "Invalid organization code" });
         }
 
         user.organizationId = organization._id;
@@ -133,10 +123,7 @@ async function joinOrganization(req, res) {
         });
     } catch (error) {
         console.error("Join organization error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error while joining organization"
-        });
+        return res.status(500).json({ success: false, message: "Error joining organization" });
     }
 }
 
@@ -147,14 +134,14 @@ async function requestOrganizationLeave(req, res) {
             return res.status(400).json({ success: false, message: "You do not belong to an organization" });
         }
         if (user.role === "admin") {
-            return res.status(400).json({ success: false, message: "Organization admins cannot leave until another admin is assigned" });
+            return res.status(400).json({ success: false, message: "Admins cannot leave until another admin is assigned" });
         }
 
         const request = await OrganizationLeaveRequest.findOneAndUpdate(
             { organizationId: user.organizationId, userId: user._id, status: "pending" },
-            { $setOnInsert: { organizationId: user.organizationId, userId: user._id, status: "pending" } },
+            { $setOnInsert: { organizationId: user.organizationId, userId: user._id } },
             { upsert: true, new: true, setDefaultsOnInsert: true }
-        ).populate("userId", "name email profilePicture role");
+        );
 
         return res.status(201).json({
             success: true,
@@ -167,13 +154,24 @@ async function requestOrganizationLeave(req, res) {
     }
 }
 
+async function getMyLeaveRequest(req, res) {
+    try {
+        const request = await OrganizationLeaveRequest.findOne({ userId: req.user.id })
+            .sort({ createdAt: -1 })
+            .populate("organizationId", "orgName");
+        return res.status(200).json({ success: true, data: request });
+    } catch (error) {
+        console.error("Get leave request error:", error);
+        return res.status(500).json({ success: false, message: "Error fetching leave request status" });
+    }
+}
+
 async function getOrganizationLeaveRequests(req, res) {
     try {
         const requests = await OrganizationLeaveRequest.find({
             organizationId: req.currentUser.organizationId,
             status: "pending"
         }).populate("userId", "name email profilePicture role").sort({ createdAt: 1 });
-
         return res.status(200).json({ success: true, data: requests });
     } catch (error) {
         console.error("Get organization leave requests error:", error);
@@ -199,16 +197,28 @@ async function reviewOrganizationLeaveRequest(req, res) {
         }
 
         if (decision === "approve") {
-            const user = await User.findOne({
-                _id: request.userId,
-                organizationId: request.organizationId
-            });
+            const user = await User.findOne({ _id: request.userId, organizationId: request.organizationId });
             if (user) {
-                await TeamMember.deleteMany({ userId: user._id });
-                await Task.deleteMany({
+                const projects = await Project.find({
                     organizationId: request.organizationId,
-                    $or: [{ assignedTo: user._id }, { createdBy: user._id }]
-                });
+                    createdBy: user._id
+                }).select("_id");
+                const projectIds = projects.map((project) => project._id);
+
+                await Promise.all([
+                    TeamMember.deleteMany({ userId: user._id }),
+                    Task.deleteMany({
+                        organizationId: request.organizationId,
+                        $or: [
+                            { assignedTo: user._id },
+                            { createdBy: user._id },
+                            { projectId: { $in: projectIds } }
+                        ]
+                    }),
+                    TeamProject.deleteMany({ projectId: { $in: projectIds } }),
+                    Project.deleteMany({ _id: { $in: projectIds } })
+                ]);
+
                 user.organizationId = null;
                 user.role = "member";
                 await user.save();
@@ -221,7 +231,8 @@ async function reviewOrganizationLeaveRequest(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: decision === "approve" ? "Leave request approved and member removed" : "Leave request rejected"
+            message: decision === "approve" ? "Leave approved and member released" : "Leave request rejected",
+            data: { status: request.status }
         });
     } catch (error) {
         console.error("Review organization leave request error:", error);
@@ -305,6 +316,7 @@ module.exports = {
     createOrganization,
     joinOrganization,
     requestOrganizationLeave,
+    getMyLeaveRequest,
     getOrganizationLeaveRequests,
     reviewOrganizationLeaveRequest,
     getOrganization,

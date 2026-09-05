@@ -14,6 +14,7 @@ export default function OrganizationPage() {
   const [organization, setOrganization] = useState(null);
   const [members, setMembers] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [myLeaveRequest, setMyLeaveRequest] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Create Org state (for users who haven't created one)
@@ -21,7 +22,6 @@ export default function OrganizationPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
-  const [leaveRequested, setLeaveRequested] = useState(false);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [reviewingRequest, setReviewingRequest] = useState(null);
 
@@ -37,11 +37,10 @@ export default function OrganizationPage() {
     }
 
     try {
-      const requestsPromise = isAdmin ? orgApi.getLeaveRequests() : Promise.resolve(null);
       const [orgRes, membersRes, requestsRes] = await Promise.allSettled([
         orgApi.getMe(),
         orgApi.getMembers(),
-        requestsPromise,
+        isAdmin ? orgApi.getLeaveRequests() : Promise.resolve(null),
       ]);
 
       if (orgRes.status === 'fulfilled') {
@@ -66,6 +65,14 @@ export default function OrganizationPage() {
   useEffect(() => {
     loadOrgData();
   }, [loadOrgData]);
+
+  useEffect(() => {
+    if (hasOrg) {
+      orgApi.getMyLeaveRequest()
+        .then((res) => setMyLeaveRequest(res.data.data))
+        .catch(() => setMyLeaveRequest(null));
+    }
+  }, [hasOrg]);
 
   // Create organization
   const handleCreateOrg = async (e) => {
@@ -102,7 +109,7 @@ export default function OrganizationPage() {
     setJoinLoading(true);
     try {
       await orgApi.join(inviteCode);
-      toast.success('You joined the organization successfully!');
+      toast.success('You joined the organization successfully.');
       await refetchUser();
     } catch (err) {
       toast.error(err.message);
@@ -114,8 +121,8 @@ export default function OrganizationPage() {
   const handleRequestLeave = async () => {
     setLeaveLoading(true);
     try {
-      await orgApi.requestLeave();
-      setLeaveRequested(true);
+      const res = await orgApi.requestLeave();
+      setMyLeaveRequest(res.data.data);
       toast.success('Leave request sent to the organization admin.');
     } catch (err) {
       toast.error(err.message);
@@ -128,7 +135,7 @@ export default function OrganizationPage() {
     setReviewingRequest(requestId);
     try {
       await orgApi.reviewLeaveRequest(requestId, decision);
-      toast.success(decision === 'approve' ? 'Member removed from the organization.' : 'Leave request rejected.');
+      toast.success(decision === 'approve' ? 'Member released from the organization.' : 'Leave request rejected.');
       await loadOrgData();
     } catch (err) {
       toast.error(err.message);
@@ -161,7 +168,7 @@ export default function OrganizationPage() {
 
   if (loading) return <LoadingSpinner text="Loading organization workspace..." />;
 
-  // User has no organization: show Create Organization form
+  // User has no organization: show Create or Join Organization forms
   if (!hasOrg) {
     return (
       <div style={{ maxWidth: '580px', margin: '2rem auto' }}>
@@ -181,9 +188,9 @@ export default function OrganizationPage() {
           >
             <Building2 size={26} />
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Create Your Organization</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Create or Join an Organization</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.375rem' }}>
-            Set up an organization hub to start managing projects, teams, and member roles.
+            Set up a new workspace or join an existing one with an organization code.
           </p>
         </div>
 
@@ -240,7 +247,7 @@ export default function OrganizationPage() {
         <div className="card" style={{ padding: '2rem' }}>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.4rem' }}>Join an Organization</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-            Enter the organization code shared by an administrator.
+            Ask an organization admin for its unique code.
           </p>
           <form onSubmit={handleJoinOrg}>
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
@@ -323,7 +330,7 @@ export default function OrganizationPage() {
         </p>
         {isAdmin && organization?.inviteCode && (
           <div style={{ marginTop: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Share this code with new members:{' '}
+            Share this organization code with members:{' '}
             <strong style={{ color: 'var(--text-primary)', letterSpacing: '0.1em' }}>{organization.inviteCode}</strong>
           </div>
         )}
@@ -379,20 +386,14 @@ export default function OrganizationPage() {
 
       {isAdmin && leaveRequests.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Leave Requests</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-              Approving removes the member from teams and deletes their organization tasks.
-            </p>
-          </div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.35rem' }}>Leave Requests</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+            Approving releases the member and removes their organization tasks, projects, and team memberships.
+          </p>
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Requested</th>
-                  <th>Actions</th>
-                </tr>
+                <tr><th>Member</th><th>Requested</th><th>Status</th><th>Action</th></tr>
               </thead>
               <tbody>
                 {leaveRequests.map((request) => (
@@ -407,22 +408,11 @@ export default function OrganizationPage() {
                       </div>
                     </td>
                     <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '—'}</td>
+                    <td><span className="badge badge-info">Pending</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleReviewLeave(request._id, 'approve')}
-                          disabled={reviewingRequest === request._id}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleReviewLeave(request._id, 'reject')}
-                          disabled={reviewingRequest === request._id}
-                        >
-                          Reject
-                        </button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleReviewLeave(request._id, 'approve')} disabled={reviewingRequest === request._id}>Approve</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleReviewLeave(request._id, 'reject')} disabled={reviewingRequest === request._id}>Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -438,12 +428,19 @@ export default function OrganizationPage() {
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Leave this organization</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-              An admin must approve your request before you can join another organization.
+              Your admin must approve the request before you can join another organization.
             </p>
           </div>
-          <button className="btn btn-secondary" onClick={handleRequestLeave} disabled={leaveLoading || leaveRequested}>
-            {leaveRequested ? 'Request Pending' : leaveLoading ? 'Sending Request...' : 'Request to Leave'}
-          </button>
+          <div style={{ textAlign: 'right' }}>
+            {myLeaveRequest && (
+              <div style={{ color: myLeaveRequest.status === 'rejected' ? 'var(--danger)' : 'var(--text-secondary)', fontSize: '0.8125rem', marginBottom: '0.5rem' }}>
+                Request status: <strong>{myLeaveRequest.status}</strong>
+              </div>
+            )}
+            <button className="btn btn-secondary" onClick={handleRequestLeave} disabled={leaveLoading || myLeaveRequest?.status === 'pending'}>
+              {leaveLoading ? 'Sending Request...' : myLeaveRequest?.status === 'pending' ? 'Request Pending' : 'Request to Leave'}
+            </button>
+          </div>
         </div>
       )}
 

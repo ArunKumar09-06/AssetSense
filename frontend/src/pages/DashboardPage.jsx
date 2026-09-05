@@ -57,7 +57,7 @@ export default function DashboardPage() {
     return (
       <div>
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Welcome to DevCollab, {user?.name}!</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Welcome to AssetSense, {user?.name}!</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
             To begin organizing projects, teams, and tasks, create your organization workspace.
           </p>

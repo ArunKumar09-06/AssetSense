@@ -4,6 +4,7 @@ export const orgApi = {
   create: (data) => apiClient.post('/api/organizations', data),
   join: (inviteCode) => apiClient.post('/api/organizations/join', { inviteCode }),
   requestLeave: () => apiClient.post('/api/organizations/leave-requests'),
+  getMyLeaveRequest: () => apiClient.get('/api/organizations/leave-requests/me'),
   getLeaveRequests: () => apiClient.get('/api/organizations/leave-requests'),
   reviewLeaveRequest: (requestId, decision) =>
     apiClient.patch(`/api/organizations/leave-requests/${requestId}`, { decision }),

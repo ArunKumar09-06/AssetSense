@@ -131,7 +131,7 @@ export default function LandingPage() {
             lineHeight: 1.7,
           }}
         >
-          DevCollab gives your organization the clarity to coordinate teams, attach projects,
+          AssetSense gives your organization the clarity to coordinate teams, attach projects,
           and track task execution through a clean, distraction-free interface.
         </p>
 
@@ -178,7 +178,7 @@ export default function LandingPage() {
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              devcollab.app/dashboard
+              assetsense.app/dashboard
             </div>
           </div>
 
@@ -285,12 +285,12 @@ export default function LandingPage() {
               Built for teams that value focus over feature bloat
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: '1rem' }}>
-              DevCollab was created to eliminate the friction commonly found in over-complicated project tools.
+              AssetSense was created to eliminate the friction commonly found in over-complicated project tools. 
               Instead of navigating through endless configuration screens, teams can organize their projects, 
               form squads, and assign tasks with strict role authorization.
             </p>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7 }}>
-              Designed for technical teams, agencies, and product organizations, DevCollab keeps your data
+              Designed for technical teams, agencies, and product organizations, AssetSense keeps your data 
               clean and your team synchronized on what matters today.
             </p>
           </div>

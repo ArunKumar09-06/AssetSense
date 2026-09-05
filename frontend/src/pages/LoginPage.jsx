@@ -65,7 +65,7 @@ export default function LoginPage() {
             >
               A
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>DevCollab</span>
+            <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>AssetSense</span>
           </Link>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.375rem' }}>
             Sign in to your account
